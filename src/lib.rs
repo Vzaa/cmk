@@ -81,10 +81,10 @@ pub struct Entry {
 }
 
 impl Entry {
-    pub fn changes(&self, c: &Coin) -> Changes4 {
+    pub fn values(&self, c: &Coin) -> Values {
         let val = c.price_usd * self.amount;
 
-        Changes4(
+        Values(
             val,
             self.init_cost,
             (val * c.percent_change_1h.unwrap_or(0.0)) / 100.0,
@@ -94,26 +94,26 @@ impl Entry {
     }
 }
 
-pub struct Changes4(pub f64, pub f64, pub f64, pub f64, pub f64);
+pub struct Values(pub f64, pub f64, pub f64, pub f64, pub f64);
 
-impl Sum for Changes4 {
+impl Sum for Values {
     fn sum<I>(iter: I) -> Self
     where
         I: Iterator<Item = Self>,
     {
         iter.fold(
-            Changes4(0.0, 0.0, 0.0, 0.0, 0.0),
-            |Changes4(a1, a2, a3, a4, a5), Changes4(b1, b2, b3, b4, b5)| {
-                Changes4(a1 + b1, a2 + b2, a3 + b3, a4 + b4, a5 + b5)
+            Values(0.0, 0.0, 0.0, 0.0, 0.0),
+            |Values(a1, a2, a3, a4, a5), Values(b1, b2, b3, b4, b5)| {
+                Values(a1 + b1, a2 + b2, a3 + b3, a4 + b4, a5 + b5)
             },
         )
     }
 }
 
-pub fn fetch_coin_data(proxy: Option<String>, l: i32) -> Result<HashMap<String, Coin>, &'static str> {
+pub fn fetch_coin_data(proxy: Option<&str>, l: u32) -> Result<HashMap<String, Coin>, &'static str> {
     let client = if let Some(proxy_url) = proxy {
         reqwest::Client::builder()
-            .proxy(reqwest::Proxy::all(&proxy_url).map_err(|_| "Proxy error")?)
+            .proxy(reqwest::Proxy::all(proxy_url).map_err(|_| "Proxy error")?)
             .build()
             .map_err(|_| "Build error")?
     } else {
