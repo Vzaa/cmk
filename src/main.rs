@@ -15,10 +15,13 @@ fn main() {
         (version: "0.1")
         (@arg PROXY: -p --proxy +takes_value "Proxy URL")
         (@arg LIMIT: -l --limit +takes_value "Queried currency limit (Default: 150)")
+        (@arg SUMMARY: -s --summary "Summary only")
         (@arg FILE: +required "Portfolio JSON File")
     ).get_matches();
 
+    let summary = matches.is_present("SUMMARY");
     let json_path = matches.value_of("FILE").unwrap();
+    let proxy: Option<&str> = matches.value_of("PROXY");
 
     let limit: u32 = matches
         .value_of("JSON")
@@ -28,8 +31,6 @@ fn main() {
             eprintln!("Invalid limit Values: {}", e);
             exit(1)
         });
-
-    let proxy: Option<&str> = matches.value_of("PROXY");
 
     let coins = cmk::fetch_coin_data(proxy, limit).unwrap();
 
@@ -44,31 +45,41 @@ fn main() {
         })
         .sum();
 
-    for e in p {
-        let c = coins.get(&e.id).unwrap();
-        let Values(val, init, c1, c24, c7) = e.values(&c);
-        eprintln!(
-            "{}({:.2}): ${:.2} -> ${:.2} ({:.2}, {:.2}%)\n=> {:.2} {:.2} {:.2}\n",
-            c.name,
-            e.amount,
-            init,
-            val,
-            val - init,
-            ((val - init) / init) * 100.0,
-            c1,
-            c24,
-            c7
-        );
+    if summary {
+        println!(
+            "${:.2} -> ${:.2} (T {:.2}, 1H {:.2})",
+            sum_init,
+            sum_usd,
+            sum_usd - sum_init,
+            m1);
+    } else {
+        for e in p {
+            let c = coins.get(&e.id).unwrap();
+            let Values(val, init, c1, c24, c7) = e.values(&c);
+            println!(
+                "{}({:.2}): ${:.2} -> ${:.2} ({:.2}, {:.2}%)\n=> {:.2} {:.2} {:.2}\n",
+                c.name,
+                e.amount,
+                init,
+                val,
+                val - init,
+                ((val - init) / init) * 100.0,
+                c1,
+                c24,
+                c7
+                );
+        }
+
+        println!(
+            "${:.2} -> ${:.2} ({:.2}, {:.2}%) => {:.2} {:.2} {:.2}",
+            sum_init,
+            sum_usd,
+            sum_usd - sum_init,
+            ((sum_usd - sum_init) / sum_init) * 100.0,
+            m1,
+            m24,
+            m7
+            );
     }
 
-    println!(
-        "${:.2} -> ${:.2} ({:.2}, {:.2}%) => {:.2} {:.2} {:.2}",
-        sum_init,
-        sum_usd,
-        sum_usd - sum_init,
-        ((sum_usd - sum_init) / sum_init) * 100.0,
-        m1,
-        m24,
-        m7
-    );
 }
