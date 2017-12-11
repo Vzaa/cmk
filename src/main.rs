@@ -36,7 +36,7 @@ fn main() {
             exit(1)
         });
 
-    let coins = cmk::fetch_coin_data(proxy, limit).unwrap();
+    let coins = cmk::fetch_coin_list_data(proxy, limit).unwrap();
 
     let p: Vec<Entry> = File::open(json_path)
         .map(|f| serde_json::from_reader(BufReader::new(f)).unwrap())

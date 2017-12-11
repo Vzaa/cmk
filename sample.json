@@ -1,21 +1,21 @@
 [
     {
-        "id": "BTC",
+        "id": "bitcoin",
         "init_cost": 5000.00,
         "amount": 1.50
     },
     {
-        "id": "ETH",
+        "id": "ethereum",
         "init_cost": 200.0,
         "amount": 5.0
     },
     {
-        "id": "DOGE",
+        "id": "dogecoin",
         "init_cost": 10.0,
         "amount": 10000.0
     },
     {
-        "id": "XMR",
+        "id": "monero",
         "init_cost": 100.0,
         "amount": 0.5
     }
