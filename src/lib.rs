@@ -8,6 +8,7 @@ extern crate serde_json;
 use std::collections::HashMap;
 use std::str::FromStr;
 use std::iter::Sum;
+use std::env;
 
 use chrono::{DateTime, TimeZone, Utc};
 use serde::de::{Deserialize, Deserializer};
@@ -114,6 +115,11 @@ pub fn fetch_coin_data(proxy: Option<&str>, l: u32) -> Result<HashMap<String, Co
     let client = if let Some(proxy_url) = proxy {
         reqwest::Client::builder()
             .proxy(reqwest::Proxy::all(proxy_url).map_err(|_| "Proxy error")?)
+            .build()
+            .map_err(|_| "Build error")?
+    } else if let Ok(proxy_url) = env::var("http_proxy") {
+        reqwest::Client::builder()
+            .proxy(reqwest::Proxy::all(&proxy_url).map_err(|_| "Proxy error")?)
             .build()
             .map_err(|_| "Build error")?
     } else {
