@@ -28,7 +28,7 @@ fn main() {
     let format_str: &str = matches.value_of("FORMAT").unwrap_or(DEFFORMAT);
 
     let limit: u32 = matches
-        .value_of("JSON")
+        .value_of("LIMIT")
         .unwrap_or("150")
         .parse()
         .unwrap_or_else(|e| {
