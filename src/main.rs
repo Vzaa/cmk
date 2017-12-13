@@ -8,9 +8,32 @@ use std::fs::File;
 use std::io::BufReader;
 use std::process::exit;
 
-use cmk::{Entry, Values};
+use cmk::{Entry, Values, Coin};
 
-const DEFFORMAT: &str = "%n(%a): $%i -> $%s (%d)\n=> %1 %2 %7";
+const DEFFORMAT: &str = "%n ($%u): %a\n $%i -> $%s (%d, %D%)\n 1h: %1 (%11%)\n 24h: %2 (%22%)\n 7d: %7 (%77%)";
+
+fn formatted_str(c: Option<&Coin>, e: Option<&Entry>, v: Values, f: &str) -> String {
+    let Values(val, init, c1, c24, c7) = v;
+
+    let out = f
+        .to_owned()
+        .replace("\\n", "\n")
+        .replace("%i", &format!("{:.2}", init))
+        .replace("%s", &format!("{:.2}", val))
+        .replace("%d", &format!("{:.2}", val - init))
+        .replace("%D", &format!("{:.2}", 100.0 * (val - init) / init))
+        .replace("%11", &format!("{:.2}", 100.0 * c1 / (val - c1)))
+        .replace("%22", &format!("{:.2}", 100.0 * c24 / (val - c24)))
+        .replace("%77", &format!("{:.2}", 100.0 * c7 / (val - c7)))
+        .replace("%1", &format!("{:.2}", c1))
+        .replace("%2", &format!("{:.2}", c24))
+        .replace("%7", &format!("{:.2}", c7))
+        .replace("%n", c.map(|x| x.name.as_str()).unwrap_or("Total"))
+        .replace("%u", &c.map(|x| format!("{}", x.price_usd)).unwrap_or("N/A".to_owned()))
+        .replace("%a", &e.map(|x| format!("{:.2}", x.amount)).unwrap_or("N/A".to_owned()));
+
+    out
+}
 
 fn main() {
     let matches = clap_app!(cmk =>
@@ -42,7 +65,7 @@ fn main() {
         .map(|f| serde_json::from_reader(BufReader::new(f)).unwrap())
         .unwrap();
 
-    let Values(sum_usd, sum_init, m1, m24, m7) = p.iter()
+    let v = p.iter()
         .map(|e| {
             let c = coins.get(&e.id).unwrap();
             e.values(&c)
@@ -52,32 +75,12 @@ fn main() {
     if !summary {
         for e in p {
             let c = coins.get(&e.id).unwrap();
-            let Values(val, init, c1, c24, c7) = e.values(&c);
-            let out = format_str
-                .to_owned()
-                .replace("%n", &format!("{}", c.name))
-                .replace("%a", &format!("{:.2}", e.amount))
-                .replace("%i", &format!("{:.2}", init))
-                .replace("%s", &format!("{:.2}", val))
-                .replace("%d", &format!("{:.2}", val - init))
-                .replace("%1", &format!("{:.2}", c1))
-                .replace("%2", &format!("{:.2}", c24))
-                .replace("%7", &format!("{:.2}", c7));
-
+            let out = formatted_str(Some(&c), Some(&e), e.values(&c), format_str);
             println!("{}\n", out);
         }
     }
 
-    let out = format_str
-        .to_owned()
-        .replace("%n", &format!("{}", "Total"))
-        .replace("%i", &format!("{:.2}", sum_init))
-        .replace("%a", "")
-        .replace("%s", &format!("{:.2}", sum_usd))
-        .replace("%d", &format!("{:.2}", sum_usd - sum_init))
-        .replace("%1", &format!("{:.2}", m1))
-        .replace("%2", &format!("{:.2}", m24))
-        .replace("%7", &format!("{:.2}", m7));
+    let out = formatted_str(None, None, v, format_str);
 
     println!("{}", out);
 }

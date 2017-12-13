@@ -84,13 +84,16 @@ pub struct Entry {
 impl Entry {
     pub fn values(&self, c: &Coin) -> Values {
         let val = c.price_usd * self.amount;
+        let c1 = c.percent_change_1h.unwrap_or(0.0);
+        let c2 = c.percent_change_24h.unwrap_or(0.0);
+        let c7 = c.percent_change_7d.unwrap_or(0.0);
 
         Values(
             val,
             self.init_cost,
-            (val * c.percent_change_1h.unwrap_or(0.0)) / 100.0,
-            (val * c.percent_change_24h.unwrap_or(0.0)) / 100.0,
-            (val * c.percent_change_7d.unwrap_or(0.0)) / 100.0,
+            ((val / (c1 + 100.0)) * c1),
+            ((val / (c2 + 100.0)) * c2),
+            ((val / (c7 + 100.0)) * c7),
         )
     }
 }
