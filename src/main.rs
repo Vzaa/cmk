@@ -22,7 +22,7 @@ const DEFFORMAT: &str =
 fn formatted_str(c: Option<&Coin>, e: Option<&Entry>, v: &Values, f: &str) -> String {
     let Values(val, init, c1, c24, c7) = *v;
 
-    let out = f.to_owned()
+    f.to_owned()
         .replace("\\n", "\n")
         .replace("%i", &format!("{:.2}", init))
         .replace("%s", &format!("{:.2}", val))
@@ -44,13 +44,11 @@ fn formatted_str(c: Option<&Coin>, e: Option<&Entry>, v: &Values, f: &str) -> St
             "%a",
             &e.map(|x| format!("{:.2}", x.amount))
                 .unwrap_or("N/A".to_owned()),
-        );
-
-    out
+        )
 }
 
-fn fill_row(c: Option<&Coin>, e: Option<&Entry>, v: Values, t: &mut Table) {
-    let Values(val, init, c1, c24, c7) = v;
+fn fill_row(c: Option<&Coin>, e: Option<&Entry>, v: &Values, t: &mut Table) {
+    let Values(val, init, c1, c24, c7) = *v;
     let cel = |v, color, b, a| {
         let style = if color {
             if v > 0.0 {
@@ -65,7 +63,7 @@ fn fill_row(c: Option<&Coin>, e: Option<&Entry>, v: Values, t: &mut Table) {
         Cell::new(&format!("{}{:.2}{}", b, v, a)).style_spec(style)
     };
 
-    let r = Row::new(vec![
+    let nr = Row::new(vec![
         Cell::new(c.map(|x| x.symbol.as_str()).unwrap_or("Total")),
         Cell::new(&c.map(|x| format!("${}", x.price_usd))
             .unwrap_or("N/A".to_owned())),
@@ -83,7 +81,7 @@ fn fill_row(c: Option<&Coin>, e: Option<&Entry>, v: Values, t: &mut Table) {
         cel(100.0 * c7 / (val - c7), true, "", "%"),
     ]);
 
-    t.add_row(r);
+    t.add_row(nr);
 }
 
 fn main() {
@@ -119,10 +117,10 @@ fn main() {
         .unwrap();
 
     p.sort_by(|a, b| {
-        let c_a = coins.get(&a.id).unwrap();
-        let c_b = coins.get(&b.id).unwrap();
-        let Values(_val_a, _init_a, _c1_a, _c24_a, _c7_a) = a.values(&c_a);
-        let Values(_val_b, _init_b, _c1_b, _c24_b, _c7_b) = b.values(&c_b);
+        let c_a = &coins[&a.id];
+        let c_b = &coins[&b.id];
+        let Values(_val_a, _init_a, _c1_a, _c24_a, _c7_a) = a.values(c_a);
+        let Values(_val_b, _init_b, _c1_b, _c24_b, _c7_b) = b.values(c_b);
         let _1h_a = c_a.percent_change_1h.unwrap_or(0.0);
         let _1h_b = c_b.percent_change_1h.unwrap_or(0.0);
         _1h_a.partial_cmp(&_1h_b).unwrap()
@@ -130,8 +128,8 @@ fn main() {
 
     let v = p.iter()
         .map(|e| {
-            let c = coins.get(&e.id).unwrap();
-            e.values(&c)
+            let c = &coins[&e.id];
+            e.values(c)
         })
         .sum();
 
@@ -153,9 +151,9 @@ fn main() {
 
     if !summary {
         for e in p {
-            let c = coins.get(&e.id).unwrap();
-            let out = formatted_str(Some(&c), Some(&e), &e.values(&c), format_str);
-            fill_row(Some(&c), Some(&e), e.values(&c), &mut t);
+            let c = &coins[&e.id];
+            let out = formatted_str(Some(c), Some(&e), &e.values(c), format_str);
+            fill_row(Some(c), Some(&e), &e.values(c), &mut t);
             if !table {
                 println!("{}\n", out);
             }
@@ -163,7 +161,7 @@ fn main() {
     }
 
     let out = formatted_str(None, None, &v, format_str);
-    fill_row(None, None, v, &mut t);
+    fill_row(None, None, &v, &mut t);
 
     if table {
         t.printstd();
