@@ -114,9 +114,19 @@ fn main() {
 
     let coins = cmk::fetch_coin_list_data(proxy, limit).unwrap();
 
-    let p: Vec<Entry> = File::open(json_path)
+    let mut p: Vec<Entry> = File::open(json_path)
         .map(|f| serde_json::from_reader(BufReader::new(f)).unwrap())
         .unwrap();
+
+    p.sort_by(|a, b| {
+        let c_a = coins.get(&a.id).unwrap();
+        let c_b = coins.get(&b.id).unwrap();
+        let Values(_val_a, _init_a, _c1_a, _c24_a, _c7_a) = a.values(&c_a);
+        let Values(_val_b, _init_b, _c1_b, _c24_b, _c7_b) = b.values(&c_b);
+        let _1h_a = c_a.percent_change_1h.unwrap_or(0.0);
+        let _1h_b = c_b.percent_change_1h.unwrap_or(0.0);
+        _1h_a.partial_cmp(&_1h_b).unwrap()
+    });
 
     let v = p.iter()
         .map(|e| {
