@@ -14,6 +14,8 @@ use chrono::{DateTime, TimeZone, Utc};
 use serde::de::{Deserialize, Deserializer};
 use serde::de;
 
+const API_URL: &str = "https://api.coinmarketcap.com/v1/ticker/";
+
 #[derive(Deserialize, Debug)]
 pub struct Coin {
     pub id: String,
@@ -134,11 +136,11 @@ fn get_client(proxy: Option<&str>) -> Result<reqwest::Client, &'static str> {
     Ok(client)
 }
 
-pub fn fetch_coin_list_data(proxy: Option<&str>, l: u32) -> Result<HashMap<String, Coin>, &'static str> {
+pub fn fetch_coin_list(proxy: Option<&str>, l: u32) -> Result<HashMap<String, Coin>, &'static str> {
     let client = get_client(proxy)?;
 
     let resp = client
-        .get(&format!("https://api.coinmarketcap.com/v1/ticker/?limit={}", l))
+        .get(&format!("{}/?limit={}", API_URL, l))
         .send()
         .map_err(|_| "Request send error")?;
 
@@ -151,11 +153,11 @@ pub fn fetch_coin_list_data(proxy: Option<&str>, l: u32) -> Result<HashMap<Strin
     Ok(c)
 }
 
-pub fn fetch_coin_data(proxy: Option<&str>, id: &str) -> Result<Coin, &'static str> {
+pub fn fetch_coin(proxy: Option<&str>, id: &str) -> Result<Coin, &'static str> {
     let client = get_client(proxy)?;
 
     let resp = client
-        .get(&format!("https://api.coinmarketcap.com/v1/ticker/{}/", id))
+        .get(&format!("{}/{}/", API_URL, id))
         .send()
         .map_err(|_| "Request send error")?;
 

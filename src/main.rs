@@ -110,7 +110,7 @@ fn main() {
             exit(1)
         });
 
-    let coins = cmk::fetch_coin_list_data(proxy, limit).unwrap();
+    let coins = cmk::fetch_coin_list(proxy, limit).unwrap();
 
     let mut p: Vec<Entry> = File::open(json_path)
         .map(|f| serde_json::from_reader(BufReader::new(f)).unwrap())
@@ -134,19 +134,8 @@ fn main() {
         .sum();
 
     let mut t = table!([
-        "Name",
-        "Unit USD",
-        "Owned",
-        "Init",
-        "Value",
-        "Earned",
-        "Earned %",
-        "1h",
-        "1h%",
-        "24h",
-        "24h%",
-        "7d",
-        "7d%"
+        "Name", "Unit USD", "Owned", "Init", "Value", "Earned", "Earned %", "1h", "1h%", "24h",
+        "24h%", "7d", "7d%"
     ]);
 
     if !summary {
