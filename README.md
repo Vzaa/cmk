@@ -2,36 +2,82 @@
 
 Track cryptocurrency portfolio
 
+
+## Usage
+
+```
+USAGE:
+    cmk [FLAGS] [OPTIONS] <FILE>
+
+FLAGS:
+    -s, --summary    Summary only
+    -t, --table      Print table
+    -h, --help       Prints help information
+    -V, --version    Prints version information
+
+OPTIONS:
+    -f, --format <FORMAT>    Custom format
+    -l, --limit <LIMIT>      Queried currency limit (Default: 150)
+    -p, --proxy <PROXY>      Proxy URL
+
+ARGS:
+    <FILE>    Portfolio JSON File
+```
+
+## Table Option
+
+Use -t option for a table output:
+
+![Output](img/cmk.png)
+
+
+## With i3blocks
+
+Use the -s option for a summary line that is suitable to use with i3blocks, use -f to customize the format:
+
+
+```
+[cmk]
+command=cmk ~/sample.json -s -f "$%i -> $%s (T %d, 1H %1)"
+interval=120
+```
+
+### Output:
+![Output](img/i3.png)
+
+
+## Default Output
+
 ```
 $ cmk sample.json
 
-Bitcoin ($17207.1): 1.50
- $5000.00 -> $25810.65 (20810.65, 416.21%)
- 1h: 308.58 (1.21%)
- 24h: 181.96 (0.71%)
- 7d: 6434.74 (33.21%)
+Monero ($314.972): 0.50
+ $100.00 -> $157.49 (57.49, 57.49%)
+ 1h: -2.98 (-1.86%)
+ 24h: 1.56 (1.00%)
+ 7d: -6.39 (-3.90%)
 
-Ethereum ($680.086): 5.00
- $200.00 -> $3400.43 (3200.43, 1600.21%)
- 1h: 47.28 (1.41%)
- 24h: 628.19 (22.66%)
- 7d: 1164.19 (52.06%)
+Ethereum ($1058.97): 5.00
+ $200.00 -> $5294.85 (5094.85, 2547.43%)
+ 1h: -93.21 (-1.73%)
+ 24h: 265.07 (5.27%)
+ 7d: 176.58 (3.45%)
 
-Dogecoin ($0.00383872): 10000.00
- $10.00 -> $38.39 (28.39, 283.87%)
- 1h: 1.42 (3.85%)
- 24h: 10.17 (36.02%)
- 7d: 13.25 (52.71%)
+Bitcoin ($11345.2): 1.50
+ $5000.00 -> $17017.80 (12017.80, 240.36%)
+ 1h: -285.50 (-1.65%)
+ 24h: 474.78 (2.87%)
+ 7d: -213.67 (-1.24%)
 
-Monero ($319.1): 0.50
- $100.00 -> $159.55 (59.55, 59.55%)
- 1h: -4.87 (-2.96%)
- 24h: 13.71 (9.40%)
- 7d: 10.98 (7.39%)
+Dogecoin ($0.00735937): 10000.00
+ $10.00 -> $73.59 (63.59, 635.94%)
+ 1h: -0.11 (-0.15%)
+ 24h: 5.85 (8.63%)
+ 7d: -5.11 (-6.49%)
 
 Total ($N/A): N/A
- $5310.00 -> $29409.02 (24099.02, 453.84%)
- 1h: 352.41 (1.21%)
- 24h: 834.03 (2.92%)
- 7d: 7623.16 (34.99%)
+ $5310.00 -> $22543.73 (17233.73, 324.55%)
+ 1h: -381.81 (-1.67%)
+ 24h: 747.26 (3.43%)
+ 7d: -48.59 (-0.22%)
 ```
