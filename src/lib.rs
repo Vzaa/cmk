@@ -1,5 +1,5 @@
 extern crate chrono;
-extern crate reqwest;
+extern crate curl;
 extern crate serde;
 #[macro_use]
 extern crate serde_derive;
@@ -13,6 +13,7 @@ use std::env;
 use chrono::{DateTime, TimeZone, Utc};
 use serde::de::{Deserialize, Deserializer};
 use serde::de;
+use curl::easy::Easy;
 
 const API_URL: &str = "https://api.coinmarketcap.com/v1/ticker/";
 
@@ -116,35 +117,35 @@ impl Sum for Values {
     }
 }
 
-fn get_client(proxy: Option<&str>) -> Result<reqwest::Client, &'static str> {
-    let client = if let Some(proxy_url) = proxy {
-        reqwest::Client::builder()
-            .proxy(reqwest::Proxy::all(proxy_url).map_err(|_| "Proxy error")?)
-            .build()
-            .map_err(|_| "Build error")?
+fn get_client(proxy: Option<&str>) -> Result<Easy, &'static str> {
+    let mut client = Easy::new();
+
+    if let Some(proxy_url) = proxy {
+        client.proxy(proxy_url).map_err(|_| "Proxy Error")?;
     } else if let Ok(proxy_url) = env::var("http_proxy") {
-        reqwest::Client::builder()
-            .proxy(reqwest::Proxy::all(&proxy_url).map_err(|_| "Proxy error")?)
-            .build()
-            .map_err(|_| "Build error")?
-    } else {
-        reqwest::Client::builder()
-            .build()
-            .map_err(|_| "Build error")?
+        client.proxy(&proxy_url).map_err(|_| "Proxy Error")?;
     };
 
     Ok(client)
 }
 
 pub fn fetch_coin_list(proxy: Option<&str>, l: u32) -> Result<HashMap<String, Coin>, &'static str> {
-    let client = get_client(proxy)?;
+    let mut client = get_client(proxy)?;
+    let mut resp: Vec<u8> = Vec::new();
 
-    let resp = client
-        .get(&format!("{}/?limit={}", API_URL, l))
-        .send()
-        .map_err(|_| "Request send error")?;
+    client.url(&format!("{}/?limit={}", API_URL, l)).unwrap();
 
-    let c = serde_json::from_reader::<_, Vec<Coin>>(resp)
+    {
+        let mut transfer = client.transfer();
+        transfer
+            .write_function(|data| {
+                resp.extend_from_slice(data);
+                Ok(data.len())
+            }).unwrap();
+        transfer.perform().unwrap();
+    }
+
+    let c = serde_json::from_slice::<Vec<Coin>>(&resp)
         .map_err(|_| "JSON parse error")?
         .into_iter()
         .map(|c| (c.id.clone(), c))
@@ -154,14 +155,22 @@ pub fn fetch_coin_list(proxy: Option<&str>, l: u32) -> Result<HashMap<String, Co
 }
 
 pub fn fetch_coin(proxy: Option<&str>, id: &str) -> Result<Coin, &'static str> {
-    let client = get_client(proxy)?;
+    let mut client = get_client(proxy)?;
+    let mut resp: Vec<u8> = Vec::new();
 
-    let resp = client
-        .get(&format!("{}/{}/", API_URL, id))
-        .send()
-        .map_err(|_| "Request send error")?;
+    client.url(&format!("{}/{}/", API_URL, id)).unwrap();
 
-    serde_json::from_reader::<_, Vec<Coin>>(resp)
+    {
+        let mut transfer = client.transfer();
+        transfer
+            .write_function(|data| {
+                resp.extend_from_slice(data);
+                Ok(data.len())
+            }).unwrap();
+        transfer.perform().unwrap();
+    }
+
+    serde_json::from_slice::<Vec<Coin>>(&resp)
         .map_err(|_| "JSON parse error")?
         .pop()
         .ok_or("Emptry Response")

@@ -6,9 +6,7 @@ extern crate serde_json;
 
 extern crate cmk;
 
-use prettytable::Table;
-use prettytable::row::Row;
-use prettytable::cell::Cell;
+use prettytable::{Cell, Row, Table};
 
 use std::fs::File;
 use std::io::BufReader;
@@ -39,8 +37,7 @@ fn formatted_str(c: Option<&Coin>, e: Option<&Entry>, v: &Values, f: &str) -> St
             "%u",
             &c.map(|x| format!("{}", x.price_usd))
                 .unwrap_or("N/A".to_owned()),
-        )
-        .replace(
+        ).replace(
             "%a",
             &e.map(|x| format!("{:.2}", x.amount))
                 .unwrap_or("N/A".to_owned()),
@@ -65,10 +62,14 @@ fn fill_row(c: Option<&Coin>, e: Option<&Entry>, v: &Values, t: &mut Table) {
 
     let nr = Row::new(vec![
         Cell::new(c.map(|x| x.symbol.as_str()).unwrap_or("Total")),
-        Cell::new(&c.map(|x| format!("${}", x.price_usd))
-            .unwrap_or("N/A".to_owned())),
-        Cell::new(&e.map(|x| format!("{:.2}", x.amount))
-            .unwrap_or("N/A".to_owned())),
+        Cell::new(
+            &c.map(|x| format!("${}", x.price_usd))
+                .unwrap_or("N/A".to_owned()),
+        ),
+        Cell::new(
+            &e.map(|x| format!("{:.2}", x.amount))
+                .unwrap_or("N/A".to_owned()),
+        ),
         cel(init, false, "$", ""),
         cel(val, false, "$", ""),
         cel(val - init, true, "$", ""),
@@ -126,12 +127,12 @@ fn main() {
         _1h_a.partial_cmp(&_1h_b).unwrap()
     });
 
-    let v = p.iter()
+    let v = p
+        .iter()
         .map(|e| {
             let c = &coins[&e.id];
             e.values(c)
-        })
-        .sum();
+        }).sum();
 
     let mut t = table!([
         "Name", "Unit USD", "Owned", "Init", "Value", "Earned", "Earned %", "1h", "1h%", "24h",
