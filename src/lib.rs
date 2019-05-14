@@ -1,19 +1,16 @@
-extern crate chrono;
-extern crate curl;
-extern crate serde;
 #[macro_use]
 extern crate serde_derive;
-extern crate serde_json;
+use serde_json;
 
 use std::collections::HashMap;
-use std::str::FromStr;
-use std::iter::Sum;
 use std::env;
+use std::iter::Sum;
+use std::str::FromStr;
 
 use chrono::{DateTime, TimeZone, Utc};
-use serde::de::{Deserialize, Deserializer};
-use serde::de;
 use curl::easy::Easy;
+use serde::de;
+use serde::de::{Deserialize, Deserializer};
 
 const API_URL: &str = "https://api.coinmarketcap.com/v1/ticker/";
 
@@ -94,9 +91,9 @@ impl Entry {
         Values(
             val,
             self.init_cost,
-            ((val / (c1 + 100.0)) * c1),
-            ((val / (c2 + 100.0)) * c2),
-            ((val / (c7 + 100.0)) * c7),
+            (val / (c1 + 100.0)) * c1,
+            (val / (c2 + 100.0)) * c2,
+            (val / (c7 + 100.0)) * c7,
         )
     }
 }
@@ -141,7 +138,8 @@ pub fn fetch_coin_list(proxy: Option<&str>, l: u32) -> Result<HashMap<String, Co
             .write_function(|data| {
                 resp.extend_from_slice(data);
                 Ok(data.len())
-            }).unwrap();
+            })
+            .unwrap();
         transfer.perform().unwrap();
     }
 
@@ -166,7 +164,8 @@ pub fn fetch_coin(proxy: Option<&str>, id: &str) -> Result<Coin, &'static str> {
             .write_function(|data| {
                 resp.extend_from_slice(data);
                 Ok(data.len())
-            }).unwrap();
+            })
+            .unwrap();
         transfer.perform().unwrap();
     }
 

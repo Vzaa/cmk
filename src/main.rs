@@ -1,16 +1,10 @@
-#[macro_use]
-extern crate clap;
-#[macro_use]
-extern crate prettytable;
-extern crate serde_json;
-
-extern crate cmk;
-
-use prettytable::{Cell, Row, Table};
-
 use std::fs::File;
 use std::io::BufReader;
 use std::process::exit;
+
+use clap::clap_app;
+use prettytable::{cell, row, table, Cell, Row, Table};
+use serde_json;
 
 use cmk::{Coin, Entry, Values};
 
@@ -36,11 +30,12 @@ fn formatted_str(c: Option<&Coin>, e: Option<&Entry>, v: &Values, f: &str) -> St
         .replace(
             "%u",
             &c.map(|x| format!("{}", x.price_usd))
-                .unwrap_or("N/A".to_owned()),
-        ).replace(
+                .unwrap_or_else(|| "N/A".to_owned()),
+        )
+        .replace(
             "%a",
             &e.map(|x| format!("{:.2}", x.amount))
-                .unwrap_or("N/A".to_owned()),
+                .unwrap_or_else(|| "N/A".to_owned()),
         )
 }
 
@@ -64,11 +59,11 @@ fn fill_row(c: Option<&Coin>, e: Option<&Entry>, v: &Values, t: &mut Table) {
         Cell::new(c.map(|x| x.symbol.as_str()).unwrap_or("Total")),
         Cell::new(
             &c.map(|x| format!("${}", x.price_usd))
-                .unwrap_or("N/A".to_owned()),
+                .unwrap_or_else(|| "N/A".to_owned()),
         ),
         Cell::new(
             &e.map(|x| format!("{:.2}", x.amount))
-                .unwrap_or("N/A".to_owned()),
+                .unwrap_or_else(|| "N/A".to_owned()),
         ),
         cel(init, false, "$", ""),
         cel(val, false, "$", ""),
@@ -94,7 +89,8 @@ fn main() {
         (@arg SUMMARY: -s --summary "Summary only")
         (@arg TABLE: -t --table "Print table")
         (@arg FILE: +required "Portfolio JSON File")
-    ).get_matches();
+    )
+    .get_matches();
 
     let summary = matches.is_present("SUMMARY");
     let json_path = matches.value_of("FILE").unwrap();
@@ -132,7 +128,8 @@ fn main() {
         .map(|e| {
             let c = &coins[&e.id];
             e.values(c)
-        }).sum();
+        })
+        .sum();
 
     let mut t = table!([
         "Name", "Unit USD", "Owned", "Init", "Value", "Earned", "Earned %", "1h", "1h%", "24h",
