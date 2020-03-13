@@ -1,3 +1,7 @@
+# DEPRACATED
+
+The version of the Coinmarketcap API used by this application is offline
+
 # cmk
 
 Track cryptocurrency portfolio
