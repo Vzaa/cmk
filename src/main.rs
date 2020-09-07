@@ -1,17 +1,15 @@
 use std::fs::File;
 use std::io::BufReader;
-use std::process::exit;
 
 use clap::clap_app;
 use prettytable::{cell, row, table, Cell, Row, Table};
-use serde_json;
 
-use cmk::{Coin, Entry, Values};
+use cmk::{CmkHandle, Cryptocurrency, Entry, Values};
 
 const DEFFORMAT: &str =
     "%n ($%u): %a\n $%i -> $%s (%d, %D%)\n 1h: %1 (%11%)\n 24h: %2 (%22%)\n 7d: %7 (%77%)";
 
-fn formatted_str(c: Option<&Coin>, e: Option<&Entry>, v: &Values, f: &str) -> String {
+fn formatted_str(c: Option<&Cryptocurrency>, e: Option<&Entry>, v: &Values, f: &str) -> String {
     let Values(val, init, c1, c24, c7) = *v;
 
     f.to_owned()
@@ -29,7 +27,7 @@ fn formatted_str(c: Option<&Coin>, e: Option<&Entry>, v: &Values, f: &str) -> St
         .replace("%n", c.map(|x| x.name.as_str()).unwrap_or("Total"))
         .replace(
             "%u",
-            &c.map(|x| format!("{}", x.price_usd))
+            &c.map(|x| format!("{}", x.quote["USD"].price))
                 .unwrap_or_else(|| "N/A".to_owned()),
         )
         .replace(
@@ -39,7 +37,7 @@ fn formatted_str(c: Option<&Coin>, e: Option<&Entry>, v: &Values, f: &str) -> St
         )
 }
 
-fn fill_row(c: Option<&Coin>, e: Option<&Entry>, v: &Values, t: &mut Table) {
+fn fill_row(c: Option<&Cryptocurrency>, e: Option<&Entry>, v: &Values, t: &mut Table) {
     let Values(val, init, c1, c24, c7) = *v;
     let cel = |v, color, b, a| {
         let style = if color {
@@ -58,7 +56,7 @@ fn fill_row(c: Option<&Coin>, e: Option<&Entry>, v: &Values, t: &mut Table) {
     let nr = Row::new(vec![
         Cell::new(c.map(|x| x.symbol.as_str()).unwrap_or("Total")),
         Cell::new(
-            &c.map(|x| format!("${}", x.price_usd))
+            &c.map(|x| format!("${}", x.quote["USD"].price))
                 .unwrap_or_else(|| "N/A".to_owned()),
         ),
         Cell::new(
@@ -80,15 +78,18 @@ fn fill_row(c: Option<&Coin>, e: Option<&Entry>, v: &Values, t: &mut Table) {
     t.add_row(nr);
 }
 
+const DEF_API_URL: &str = "https://pro-api.coinmarketcap.com/";
+
 fn main() {
     let matches = clap_app!(cmk =>
         (version: "0.1")
         (@arg PROXY: -p --proxy +takes_value "Proxy URL")
-        (@arg LIMIT: -l --limit +takes_value "Queried currency limit (Default: 150)")
+        (@arg API_URL: -u --url +takes_value "Custom API URL")
         (@arg FORMAT: -f --format +takes_value "Custom format")
         (@arg SUMMARY: -s --summary "Summary only")
         (@arg TABLE: -t --table "Print table")
         (@arg FILE: +required "Portfolio JSON File")
+        (@arg API_KEY: +required "API Key")
     )
     .get_matches();
 
@@ -97,36 +98,36 @@ fn main() {
     let proxy: Option<&str> = matches.value_of("PROXY");
     let format_str: &str = matches.value_of("FORMAT").unwrap_or(DEFFORMAT);
     let table = matches.is_present("TABLE");
+    let api_key = matches.value_of("API_KEY").unwrap();
+    let api_url = matches.value_of("API_URL").unwrap_or(DEF_API_URL);
 
-    let limit: u32 = matches
-        .value_of("LIMIT")
-        .unwrap_or("150")
-        .parse()
-        .unwrap_or_else(|e| {
-            eprintln!("Invalid limit Values: {}", e);
-            exit(1)
-        });
-
-    let coins = cmk::fetch_coin_list(proxy, limit).unwrap();
-
-    let mut p: Vec<Entry> = File::open(json_path)
+    let mut user_list: Vec<Entry> = File::open(json_path)
         .map(|f| serde_json::from_reader(BufReader::new(f)).unwrap())
         .unwrap();
 
-    p.sort_by(|a, b| {
-        let c_a = &coins[&a.id];
-        let c_b = &coins[&b.id];
+    let mut handle = CmkHandle::new(api_url, api_key);
+    if let Some(proxy) = proxy {
+        handle.set_proxy(proxy);
+    }
+
+    let slugs: Vec<&str> = user_list.iter().map(|c| c.id.as_str()).collect();
+
+    let coins = handle.fetch_quotes_by_slug(&slugs).unwrap();
+
+    user_list.sort_by(|a, b| {
+        let c_a = &coins.get_by_slug(&a.id).unwrap();
+        let c_b = &coins.get_by_slug(&b.id).unwrap();
         let Values(_val_a, _init_a, _c1_a, _c24_a, _c7_a) = a.values(c_a);
         let Values(_val_b, _init_b, _c1_b, _c24_b, _c7_b) = b.values(c_b);
-        let _1h_a = c_a.percent_change_1h.unwrap_or(0.0);
-        let _1h_b = c_b.percent_change_1h.unwrap_or(0.0);
+        let _1h_a = c_a.quote["USD"].percent_change_1h.unwrap_or(0.0);
+        let _1h_b = c_b.quote["USD"].percent_change_1h.unwrap_or(0.0);
         _1h_a.partial_cmp(&_1h_b).unwrap()
     });
 
-    let v = p
+    let v = user_list
         .iter()
         .map(|e| {
-            let c = &coins[&e.id];
+            let c = &coins.get_by_slug(&e.id).unwrap();
             e.values(c)
         })
         .sum();
@@ -137,8 +138,8 @@ fn main() {
     ]);
 
     if !summary {
-        for e in p {
-            let c = &coins[&e.id];
+        for e in user_list {
+            let c = &coins.get_by_slug(&e.id).unwrap();
             let out = formatted_str(Some(c), Some(&e), &e.values(c), format_str);
             fill_row(Some(c), Some(&e), &e.values(c), &mut t);
             if !table {

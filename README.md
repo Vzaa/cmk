@@ -1,7 +1,3 @@
-# DEPRACATED
-
-The version of the Coinmarketcap API used by this application is offline
-
 # cmk
 
 Track cryptocurrency portfolio
@@ -11,7 +7,7 @@ Track cryptocurrency portfolio
 
 ```
 USAGE:
-    cmk [FLAGS] [OPTIONS] <FILE>
+    cmk [FLAGS] [OPTIONS] <FILE> <API_KEY>
 
 FLAGS:
     -s, --summary    Summary only
@@ -20,12 +16,14 @@ FLAGS:
     -V, --version    Prints version information
 
 OPTIONS:
+    -u, --url <API_URL>      Custom API URL
     -f, --format <FORMAT>    Custom format
-    -l, --limit <LIMIT>      Queried currency limit (Default: 150)
     -p, --proxy <PROXY>      Proxy URL
 
 ARGS:
-    <FILE>    Portfolio JSON File
+    <FILE>       Portfolio JSON File
+    <API_KEY>    API Key
+
 ```
 
 ## Table Option
@@ -42,7 +40,7 @@ Use the -s option for a summary line that is suitable to use with i3blocks, use 
 
 ```
 [cmk]
-command=cmk ~/sample.json -s -f "$%i -> $%s (T %d, 1H %1)"
+command=cmk -s -f "$%i -> $%s (T %d, 1H %1)" ~/sample.json {API_KEY}
 interval=120
 ```
 

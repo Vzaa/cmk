@@ -1,0 +1,55 @@
+{
+
+    "data": [
+        {
+            "id": 1,
+            "name": "Bitcoin",
+            "symbol": "BTC",
+            "slug": "bitcoin",
+            "is_active": 1,
+            "first_historical_data": "2013-04-28T18:47:21.000Z",
+            "last_historical_data": "2020-05-05T20:44:01.000Z",
+            "platform": null
+        },
+        {
+            "id": 825,
+            "name": "Tether",
+            "symbol": "USDT",
+            "slug": "tether",
+            "is_active": 1,
+            "first_historical_data": "2015-02-25T13:34:26.000Z",
+            "last_historical_data": "2020-05-05T20:44:01.000Z",
+            "platform": {
+                "id": 1027,
+                "name": "Ethereum",
+                "symbol": "ETH",
+                "slug": "ethereum",
+                "token_address": "0xdac17f958d2ee523a2206206994597c13d831ec7"
+            }
+        },
+        {
+            "id": 1839,
+            "name": "Binance Coin",
+            "symbol": "BNB",
+            "slug": "binance-coin",
+            "is_active": 1,
+            "first_historical_data": "2017-07-25T04:30:05.000Z",
+            "last_historical_data": "2020-05-05T20:44:02.000Z",
+            "platform": {
+                "id": 1027,
+                "name": "Ethereum",
+                "symbol": "ETH",
+                "slug": "ethereum",
+                "token_address": "0xB8c77482e45F1F44dE1745F52C74426C631bDD52"
+            }
+        }
+    ],
+    "status": {
+        "timestamp": "1996-12-19T16:39:57-08:00",
+        "error_code": 0,
+        "error_message": "",
+        "elapsed": 10,
+        "credit_count": 1
+    }
+
+}

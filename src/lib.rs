@@ -1,77 +1,99 @@
 #[macro_use]
 extern crate serde_derive;
-use serde_json;
 
 use std::collections::HashMap;
 use std::env;
 use std::iter::Sum;
-use std::str::FromStr;
 
-use chrono::{DateTime, TimeZone, Utc};
-use curl::easy::Easy;
-use serde::de;
-use serde::de::{Deserialize, Deserializer};
+use curl::easy::{Easy, List};
 
-const API_URL: &str = "https://api.coinmarketcap.com/v1/ticker/";
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const SANDBOX_API_URL: &str = "https://sandbox-api.coinmarketcap.com/";
+
+    #[test]
+    fn test_map() {
+        let json_txt = include_str!("../map_test.json");
+        let list: Result<CryptocurrencyMap, _> = serde_json::from_str(&json_txt);
+        assert!(list.is_ok());
+    }
+
+    #[test]
+    fn test_live_map() {
+        let handle = CmkHandle::new(SANDBOX_API_URL, "b54bcf4d-1bca-4e8e-9a24-22ff2c3d462c");
+        let list = handle.fetch_map();
+        assert!(list.is_ok());
+    }
+
+    #[test]
+    fn test_quotes() {
+        let json_txt = include_str!("../quotes_test.json");
+        let quotes: Result<CryptocurrencyQuotes, _> = serde_json::from_str(&json_txt);
+        assert!(quotes.is_ok());
+    }
+
+    #[test]
+    fn test_live_quotes() {
+        let handle = CmkHandle::new(SANDBOX_API_URL, "b54bcf4d-1bca-4e8e-9a24-22ff2c3d462c");
+        let quotes = handle.fetch_quotes_by_slug(&["bitcoin", "dogecoin"]);
+        assert!(quotes.is_ok());
+    }
+}
 
 #[derive(Deserialize, Debug)]
-pub struct Coin {
-    pub id: String,
+pub struct CryptocurrencyMap {
+    data: Vec<Id>,
+    //status: Status,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct CryptocurrencyQuotes {
+    data: HashMap<String, Cryptocurrency>,
+    //status: Status,
+}
+
+impl CryptocurrencyQuotes {
+    pub fn get_by_slug(&self, slug: &str) -> Option<&Cryptocurrency> {
+        self.data.values().find(|c| c.slug == slug)
+    }
+
+    pub fn get_by_id(&self, id: &str) -> Option<&Cryptocurrency> {
+        self.data.get(id)
+    }
+}
+
+#[derive(Deserialize, Debug)]
+pub struct Id {
+    id: i32,
+    name: String,
+    symbol: String,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct Status {
+    error_code: i32,
+    error_message: String,
+    elapsed: i32,
+    credit_count: i32,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct Cryptocurrency {
+    pub id: i32,
     pub name: String,
     pub symbol: String,
-    #[serde(deserialize_with = "deserialize_fromstr")]
-    pub rank: u64,
-    #[serde(deserialize_with = "deserialize_fromstr")]
-    pub price_usd: f64,
-    #[serde(deserialize_with = "deserialize_fromstr")]
-    pub price_btc: f64,
-    #[serde(rename = "24h_volume_usd", deserialize_with = "deserialize_fromstr")]
-    pub t24h_volume_usd: f64,
-    #[serde(deserialize_with = "deserialize_fromstr")]
-    pub market_cap_usd: f64,
-    #[serde(deserialize_with = "deserialize_fromstr")]
-    pub available_supply: f64,
-    #[serde(deserialize_with = "deserialize_fromstr")]
-    pub total_supply: f64,
-    #[serde(deserialize_with = "deserialize_fromstr_opt")]
-    pub max_supply: Option<String>,
-    #[serde(deserialize_with = "deserialize_fromstr_opt")]
+    pub slug: String,
+    pub quote: HashMap<String, Quote>,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct Quote {
+    pub price: f64,
     pub percent_change_1h: Option<f64>,
-    #[serde(deserialize_with = "deserialize_fromstr_opt")]
     pub percent_change_24h: Option<f64>,
-    #[serde(deserialize_with = "deserialize_fromstr_opt")]
     pub percent_change_7d: Option<f64>,
-    #[serde(deserialize_with = "deserialize_utc")]
-    pub last_updated: DateTime<Utc>,
-}
-
-fn deserialize_utc<'de, D: Deserializer<'de>>(d: D) -> Result<DateTime<Utc>, D::Error> {
-    let s: String = Deserialize::deserialize(d)?;
-    let t = s.parse().map_err(|_| de::Error::custom("Parse error"))?;
-    Ok(Utc.timestamp(t, 0))
-}
-
-fn deserialize_fromstr<'de, D: Deserializer<'de>, T>(d: D) -> Result<T, D::Error>
-where
-    T: FromStr,
-{
-    let s: String = Deserialize::deserialize(d)?;
-    let t = s.parse().map_err(|_| de::Error::custom("Parse error"))?;
-    Ok(t)
-}
-
-fn deserialize_fromstr_opt<'de, D: Deserializer<'de>, T>(d: D) -> Result<Option<T>, D::Error>
-where
-    T: FromStr,
-{
-    let os: Option<String> = Deserialize::deserialize(d)?;
-
-    if let Some(s) = os {
-        let t = s.parse().map_err(|_| de::Error::custom("Parse error"))?;
-        Ok(Some(t))
-    } else {
-        Ok(None)
-    }
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -82,11 +104,11 @@ pub struct Entry {
 }
 
 impl Entry {
-    pub fn values(&self, c: &Coin) -> Values {
-        let val = c.price_usd * self.amount;
-        let c1 = c.percent_change_1h.unwrap_or(0.0);
-        let c2 = c.percent_change_24h.unwrap_or(0.0);
-        let c7 = c.percent_change_7d.unwrap_or(0.0);
+    pub fn values(&self, c: &Cryptocurrency) -> Values {
+        let val = c.quote["USD"].price * self.amount;
+        let c1 = c.quote["USD"].percent_change_1h.unwrap_or(0.0);
+        let c2 = c.quote["USD"].percent_change_24h.unwrap_or(0.0);
+        let c7 = c.quote["USD"].percent_change_7d.unwrap_or(0.0);
 
         Values(
             val,
@@ -95,6 +117,100 @@ impl Entry {
             (val / (c2 + 100.0)) * c2,
             (val / (c7 + 100.0)) * c7,
         )
+    }
+}
+
+pub struct CmkHandle {
+    api_url: String,
+    api_key: String,
+    proxy: Option<String>,
+}
+
+impl CmkHandle {
+    pub fn new(api_url: &str, api_key: &str) -> CmkHandle {
+        CmkHandle {
+            api_url: api_url.into(),
+            api_key: api_key.into(),
+            proxy: None,
+        }
+    }
+
+    pub fn set_proxy(&mut self, proxy: &str) {
+        self.proxy = Some(proxy.into());
+    }
+
+    fn get_client(&self) -> Result<Easy, &'static str> {
+        let mut client = Easy::new();
+
+        if let Some(proxy_url) = &self.proxy {
+            client.proxy(&proxy_url).map_err(|_| "Proxy Error")?;
+        } else if let Ok(proxy_url) = env::var("http_proxy") {
+            client.proxy(&proxy_url).map_err(|_| "Proxy Error")?;
+        };
+
+        let mut list = List::new();
+        list.append(&format!("X-CMC_PRO_API_KEY: {}", self.api_key))
+            .unwrap();
+
+        client.http_headers(list).unwrap();
+
+        Ok(client)
+    }
+
+    pub fn fetch_map(&self) -> Result<CryptocurrencyMap, &'static str> {
+        let mut client = self.get_client()?;
+        let mut resp: Vec<u8> = Vec::new();
+
+        client
+            .url(&format!("{}/{}", self.api_url, "/v1/cryptocurrency/map"))
+            .unwrap();
+
+        {
+            let mut transfer = client.transfer();
+            transfer
+                .write_function(|data| {
+                    resp.extend_from_slice(data);
+                    Ok(data.len())
+                })
+                .unwrap();
+            transfer.perform().unwrap();
+        }
+
+        serde_json::from_slice::<CryptocurrencyMap>(&resp).map_err(|_| "JSON parse error")
+    }
+
+    pub fn fetch_quotes_by_slug(
+        &self,
+        slugs: &[&str],
+    ) -> Result<CryptocurrencyQuotes, &'static str> {
+        let mut client = self.get_client()?;
+        let mut resp: Vec<u8> = Vec::new();
+
+        let slugs_txt = slugs.join(",");
+
+        let parms = client.url_encode(&slugs_txt.as_bytes());
+
+        let url = &format!(
+            "{}/{}?slug={}",
+            self.api_url, "/v1/cryptocurrency/quotes/latest", parms
+        );
+
+        client.url(url).unwrap();
+
+        {
+            let mut transfer = client.transfer();
+            transfer
+                .write_function(|data| {
+                    resp.extend_from_slice(data);
+                    Ok(data.len())
+                })
+                .unwrap();
+            transfer.perform().unwrap();
+        }
+        //let r = String::from_utf8_lossy(&resp);
+        //println!("{}", r);
+
+        serde_json::from_slice::<CryptocurrencyQuotes>(&resp).map_err(|_| "JSON parse error")
     }
 }
 
@@ -112,65 +228,4 @@ impl Sum for Values {
             },
         )
     }
-}
-
-fn get_client(proxy: Option<&str>) -> Result<Easy, &'static str> {
-    let mut client = Easy::new();
-
-    if let Some(proxy_url) = proxy {
-        client.proxy(proxy_url).map_err(|_| "Proxy Error")?;
-    } else if let Ok(proxy_url) = env::var("http_proxy") {
-        client.proxy(&proxy_url).map_err(|_| "Proxy Error")?;
-    };
-
-    Ok(client)
-}
-
-pub fn fetch_coin_list(proxy: Option<&str>, l: u32) -> Result<HashMap<String, Coin>, &'static str> {
-    let mut client = get_client(proxy)?;
-    let mut resp: Vec<u8> = Vec::new();
-
-    client.url(&format!("{}/?limit={}", API_URL, l)).unwrap();
-
-    {
-        let mut transfer = client.transfer();
-        transfer
-            .write_function(|data| {
-                resp.extend_from_slice(data);
-                Ok(data.len())
-            })
-            .unwrap();
-        transfer.perform().unwrap();
-    }
-
-    let c = serde_json::from_slice::<Vec<Coin>>(&resp)
-        .map_err(|_| "JSON parse error")?
-        .into_iter()
-        .map(|c| (c.id.clone(), c))
-        .collect();
-
-    Ok(c)
-}
-
-pub fn fetch_coin(proxy: Option<&str>, id: &str) -> Result<Coin, &'static str> {
-    let mut client = get_client(proxy)?;
-    let mut resp: Vec<u8> = Vec::new();
-
-    client.url(&format!("{}/{}/", API_URL, id)).unwrap();
-
-    {
-        let mut transfer = client.transfer();
-        transfer
-            .write_function(|data| {
-                resp.extend_from_slice(data);
-                Ok(data.len())
-            })
-            .unwrap();
-        transfer.perform().unwrap();
-    }
-
-    serde_json::from_slice::<Vec<Coin>>(&resp)
-        .map_err(|_| "JSON parse error")?
-        .pop()
-        .ok_or("Emptry Response")
 }
