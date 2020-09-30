@@ -5,8 +5,6 @@ use std::collections::HashMap;
 use std::env;
 use std::iter::Sum;
 
-use curl::easy::{Easy, List};
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -139,78 +137,49 @@ impl CmkHandle {
         self.proxy = Some(proxy.into());
     }
 
-    fn get_client(&self) -> Result<Easy, &'static str> {
-        let mut client = Easy::new();
+    fn get_client(&self, url: &str) -> Result<ureq::Request, &'static str> {
+        let mut client = ureq::get(url);
+
+        client.set("X-CMC_PRO_API_KEY", &self.api_key);
 
         if let Some(proxy_url) = &self.proxy {
-            client.proxy(&proxy_url).map_err(|_| "Proxy Error")?;
+            let p = ureq::Proxy::new(&proxy_url).map_err(|_| "Proxy Error")?;
+            client.set_proxy(p);
         } else if let Ok(proxy_url) = env::var("http_proxy") {
-            client.proxy(&proxy_url).map_err(|_| "Proxy Error")?;
+            let p = ureq::Proxy::new(&proxy_url).map_err(|_| "Proxy Error")?;
+            client.set_proxy(p);
         };
-
-        let mut list = List::new();
-        list.append(&format!("X-CMC_PRO_API_KEY: {}", self.api_key))
-            .unwrap();
-
-        client.http_headers(list).unwrap();
 
         Ok(client)
     }
 
     pub fn fetch_map(&self) -> Result<CryptocurrencyMap, &'static str> {
-        let mut client = self.get_client()?;
-        let mut resp: Vec<u8> = Vec::new();
-
-        client
-            .url(&format!("{}/{}", self.api_url, "/v1/cryptocurrency/map"))
+        let resp = self
+            .get_client(&format!("{}/{}", self.api_url, "/v1/cryptocurrency/map"))?
+            .call()
+            .into_string()
             .unwrap();
 
-        {
-            let mut transfer = client.transfer();
-            transfer
-                .write_function(|data| {
-                    resp.extend_from_slice(data);
-                    Ok(data.len())
-                })
-                .unwrap();
-            transfer.perform().unwrap();
-        }
-
-        serde_json::from_slice::<CryptocurrencyMap>(&resp).map_err(|_| "JSON parse error")
+        serde_json::from_str::<CryptocurrencyMap>(&resp).map_err(|_| "JSON parse error")
     }
 
     pub fn fetch_quotes_by_slug(
         &self,
         slugs: &[&str],
     ) -> Result<CryptocurrencyQuotes, &'static str> {
-        let mut client = self.get_client()?;
-        let mut resp: Vec<u8> = Vec::new();
-
         let slugs_txt = slugs.join(",");
 
-        let parms = client.url_encode(&slugs_txt.as_bytes());
+        let resp = self
+            .get_client(&format!(
+                "{}/{}",
+                self.api_url, "/v1/cryptocurrency/quotes/latest"
+            ))?
+            .query("slug", &slugs_txt)
+            .call()
+            .into_string()
+            .unwrap();
 
-        let url = &format!(
-            "{}/{}?slug={}",
-            self.api_url, "/v1/cryptocurrency/quotes/latest", parms
-        );
-
-        client.url(url).unwrap();
-
-        {
-            let mut transfer = client.transfer();
-            transfer
-                .write_function(|data| {
-                    resp.extend_from_slice(data);
-                    Ok(data.len())
-                })
-                .unwrap();
-            transfer.perform().unwrap();
-        }
-        //let r = String::from_utf8_lossy(&resp);
-        //println!("{}", r);
-
-        serde_json::from_slice::<CryptocurrencyQuotes>(&resp).map_err(|_| "JSON parse error")
+        serde_json::from_str::<CryptocurrencyQuotes>(&resp).map_err(|_| "JSON parse error")
     }
 }
 
