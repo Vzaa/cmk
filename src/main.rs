@@ -78,7 +78,7 @@ fn fill_row(c: Option<&Cryptocurrency>, e: Option<&Entry>, v: &Values, t: &mut T
     t.add_row(nr);
 }
 
-const DEF_API_URL: &str = "https://pro-api.coinmarketcap.com/";
+const DEF_API_URL: &str = "https://pro-api.coinmarketcap.com";
 
 fn main() {
     let matches = clap_app!(cmk =>

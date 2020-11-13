@@ -155,7 +155,7 @@ impl CmkHandle {
 
     pub fn fetch_map(&self) -> Result<CryptocurrencyMap, &'static str> {
         let resp = self
-            .get_client(&format!("{}/{}", self.api_url, "/v1/cryptocurrency/map"))?
+            .get_client(&format!("{}/{}", self.api_url, "v1/cryptocurrency/map"))?
             .call()
             .into_string()
             .unwrap();
@@ -172,7 +172,7 @@ impl CmkHandle {
         let resp = self
             .get_client(&format!(
                 "{}/{}",
-                self.api_url, "/v1/cryptocurrency/quotes/latest"
+                self.api_url, "v1/cryptocurrency/quotes/latest"
             ))?
             .query("slug", &slugs_txt)
             .call()
